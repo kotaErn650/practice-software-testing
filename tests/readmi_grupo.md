@@ -7,6 +7,6 @@ npx playwright test tests/lopez
 
 
 
-1-> docker compose up -d
-2-> docker exec -it pst-laravel-api-1 php artisan migrate:fresh --seed
-3-> docker compose exec laravel-api php artisan migrate:fresh --seed
+** 1-> docker compose up -d
+** 2-> docker exec -it pst-laravel-api-1 php artisan migrate:fresh --seed
+** 3-> docker compose exec laravel-api php artisan migrate:fresh --seed
