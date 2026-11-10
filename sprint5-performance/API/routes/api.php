@@ -1,0 +1,209 @@
+<?php
+// Copyright (c) 2024-2026 Testsmith. All rights reserved.
+// See LICENSE for details.
+
+use App\Http\Controllers\BrandController;
+use App\Http\Controllers\CartController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ContactController;
+use App\Http\Controllers\FavoriteController;
+use App\Http\Controllers\ImageController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SocialConnectController;
+use App\Http\Controllers\TOTPController;
+use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Route;
+
+defined('ID_PARAM') || define('ID_PARAM', '/{id}');
+defined('SEARCH_PATH') || define('SEARCH_PATH', '/search');
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+|
+| Here is where you can register API routes for your application. These
+| routes are loaded by the RouteServiceProvider and all of them will
+| be assigned to the "api" middleware group. Make something great!
+|
+*/
+
+Route::get('/status', function () {
+    return response()->json(['version' => config('app.version'), 'environment' => env('APP_ENV'), 'app_name' => env('APP_NAME')], 200,
+        ['Content-Type' => 'application/json;charset=UTF-8', 'Charset' => 'utf-8'], JSON_UNESCAPED_UNICODE
+    );
+});
+
+Route::post('/refresh', function () {
+    // migrate:fresh --seed is expensive: it drops, recreates and reseeds every
+    // table. Guard it with a single-flight lock so concurrent/looping requests
+    // can't stack multiple runs and exhaust CPU/memory.
+    $lock = Cache::lock('refresh-database', 600);
+
+    if (! $lock->get()) {
+        return response()->json(['result' => 'refresh already in progress'], 429);
+    }
+
+    try {
+        // A full rebuild can outlast the default web timeout; don't let PHP abort
+        // it mid-migration and leave the schema half-dropped.
+        set_time_limit(0);
+
+        $exitCode = Artisan::call('migrate:fresh', [
+            '--seed' => true,
+            // Required outside the 'local' environment: migrate:fresh is a
+            // prohibitable command and silently aborts (non-zero exit, no
+            // exception) when run non-interactively in production/staging.
+            '--force' => true,
+        ]);
+
+        Artisan::call('invoice:remove');
+
+        // The DB is wiped — flush all caches so we don't serve stale records
+        // pointing to IDs that no longer exist after the seed.
+        Cache::flush();
+
+        if ($exitCode !== 0) {
+            return response()->json(
+                ['result' => 'refresh failed', 'output' => Artisan::output()],
+                500
+            );
+        }
+
+        return response()->json(['result' => 'refresh done']);
+    } finally {
+        // Cache::flush() above also clears the lock key, so this is best-effort.
+        $lock->release();
+    }
+})->middleware('throttle:1,5'); // at most one refresh per 5 minutes
+
+Route::controller(BrandController::class)->prefix('brands')->group(function () {
+    Route::get('', 'index')
+        ->middleware('performance.degrade:threshold:20,window:300,max_delay:3000,strategy:exponential,scope:ip');
+    Route::get(SEARCH_PATH, 'search');
+    Route::get(ID_PARAM, 'show');
+    Route::post('', 'store');
+    Route::put(ID_PARAM, 'update');
+    Route::patch(ID_PARAM, 'patch');
+    Route::delete(ID_PARAM, 'destroy');
+});
+
+Route::controller(CartController::class)->prefix('carts')->group(function () {
+    Route::post('', 'createCart');
+    Route::post(ID_PARAM, 'addItem');
+    Route::put('/{id}/product/quantity', 'updateQuantity');
+    Route::get(ID_PARAM, 'getCart');
+    Route::delete('/{cartId}/product/{productId}', 'removeProductFromCart');
+    Route::delete('/{cartId}', 'deleteCart');
+});
+
+Route::controller(CategoryController::class)->prefix('categories')->group(function () {
+    Route::get('/tree', 'indexTree')
+        ->middleware('performance.degrade:threshold:10,window:60,max_delay:2000,strategy:stepped,scope:ip');
+    Route::get('', 'index');
+    Route::get(SEARCH_PATH, 'search')
+        ->middleware('performance.degrade:threshold:10,window:60,max_delay:2000,strategy:stepped,scope:ip,degradation_type:blocking');
+    Route::get('/tree/{id}', 'show');
+    Route::post('', 'store');
+    Route::patch(ID_PARAM, 'patch');
+    Route::put(ID_PARAM, 'update');
+    Route::delete(ID_PARAM, 'destroy');
+});
+
+Route::controller(ContactController::class)->prefix('messages')->group(function () {
+    Route::post('', 'send');
+    Route::post('/{id}/attach-file', 'attachFile');
+    Route::get('', 'index');
+    Route::get(ID_PARAM, 'show');
+    Route::post('/{id}/reply', 'storeReply');
+    Route::put('/{id}/status', 'updateStatus');
+});
+
+Route::controller(FavoriteController::class)->prefix('favorites')->group(function () {
+    Route::get('', 'index');
+    Route::post('', 'store');
+    Route::get(ID_PARAM, 'show');
+    Route::delete(ID_PARAM, 'destroy');
+});
+
+Route::controller(ImageController::class)->prefix('images')->group(function () {
+    Route::get('', 'index');
+});
+
+Route::controller(InvoiceController::class)->prefix('invoices')->group(function () {
+    Route::get('', 'index');
+    Route::get(SEARCH_PATH, 'search');
+    Route::get(ID_PARAM, 'show')
+        ->middleware('performance.degrade:threshold:50,window:300,max_delay:2000,strategy:stepped,scope:ip,degradation_type:blocking');
+    Route::get('/{id}/download-pdf', 'downloadPDF');
+    Route::get('/{id}/download-pdf-status', 'downloadPDFStatus');
+    Route::put('/{id}/status', 'updateStatus');
+    Route::post('', 'store');
+    Route::put(ID_PARAM, 'update');
+    Route::patch(ID_PARAM, 'patch');
+});
+
+Route::controller(PaymentController::class)->prefix('payment')->group(function () {
+    Route::post('/check', 'check');
+});
+
+Route::controller(ProductController::class)->prefix('products')->group(function () {
+    Route::get('', 'index')
+        ->middleware('performance.degrade:threshold:50,window:60,max_delay:1000,strategy:linear,scope:ip,degradation_type:blocking');
+    Route::get(SEARCH_PATH, 'search');
+    Route::get(ID_PARAM, 'show');
+    Route::get('/{id}/related', 'showRelated');
+    Route::post('', 'store');
+    Route::put(ID_PARAM, 'update');
+    Route::patch(ID_PARAM, 'patch');
+    Route::delete(ID_PARAM, 'destroy');
+});
+
+Route::controller(ReportController::class)->prefix('reports')->group(function () {
+    Route::get('/total-sales-of-years', 'totalSalesOfYears')
+        ->middleware('performance.degrade:threshold:20,window:300,max_delay:3000,strategy:exponential,scope:ip,degradation_type:blocking');
+    Route::get('/total-sales-per-country', 'totalSalesPerCountry')
+        ->middleware(['throttle:reports']);
+    Route::get('/top10-purchased-products', 'top10PurchasedProducts')
+        ->middleware(['throttle:reports']);
+    Route::get('/top10-best-selling-categories', 'top10BestSellingCategories')
+        ->middleware(['throttle:reports']);
+    Route::get('/customers-by-country', 'customersByCountry')
+        ->middleware(['throttle:reports']);
+    Route::get('/average-sales-per-month', 'averageSalesPerMonth');
+    Route::get('/average-sales-per-week', 'averageSalesPerWeek')
+        ->middleware(['throttle:reports']);
+});
+
+Route::controller(UserController::class)->prefix('users')->group(function () {
+    Route::post('/login', 'login')
+    ->middleware('performance.degrade:threshold:10,window:60,max_delay:2000,strategy:stepped,scope:ip,degradation_type:blocking');
+    Route::post('/change-password', 'changePassword');
+    Route::post('/forgot-password', 'forgotPassword');
+    Route::post('/register', 'store')
+        ->middleware('performance.degrade:threshold:30,window:300,max_delay:1000,strategy:linear,scope:ip,degradation_type:blocking');
+    Route::get('/logout', 'logout');
+    Route::get(SEARCH_PATH, 'search');
+    Route::get('/refresh', 'refresh');
+    Route::get('/me', 'me');
+    Route::put('{id}', 'update');
+    Route::patch('{id}', 'patch');
+    Route::get('/', 'index');
+    Route::get(ID_PARAM, 'show');
+    Route::delete(ID_PARAM, 'destroy');
+});
+
+Route::controller(SocialConnectController::class)->prefix('auth')->group(function () {
+    Route::get('/social-login', 'getAuthUrl');
+    Route::get('/cb/google', 'callbackGoogle');
+    Route::get('/cb/github', 'callbackGithub');
+});
+
+Route::controller(TOTPController::class)->prefix('totp')->group(function () {
+    Route::post('/setup', 'setup');
+    Route::post('/verify', 'verify');
+    Route::post('/login/totp', 'loginWithTOTP');
+});

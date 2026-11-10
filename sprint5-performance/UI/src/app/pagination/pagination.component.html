@@ -1,0 +1,23 @@
+<!-- Copyright (c) 2024-2026 Testsmith. All rights reserved. See LICENSE for details. -->
+
+@if (lastPage > 1) {
+  <nav>
+    <ul class="pagination">
+      <li class="page-item" [class.disabled]="currentPage === 1">
+        <button type="button" class="page-link" (click)="changePage(currentPage - 1)" aria-label="Previous">
+          <span aria-hidden="true">&laquo;</span>
+        </button>
+      </li>
+      @for (page of pageNumbers(); track page) {
+        <li class="page-item" [class.active]="currentPage === page">
+          <button type="button" class="page-link" [attr.aria-label]="'Page-' + page" (click)="changePage(page)">{{ page }}</button>
+        </li>
+      }
+      <li class="page-item" [class.disabled]="currentPage === lastPage">
+        <button type="button" class="page-link" (click)="changePage(currentPage + 1)" aria-label="Next">
+          <span aria-hidden="true">&raquo;</span>
+        </button>
+      </li>
+    </ul>
+  </nav>
+}

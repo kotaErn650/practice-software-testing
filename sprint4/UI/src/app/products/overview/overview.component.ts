@@ -1,0 +1,160 @@
+// Copyright (c) 2024-2026 Testsmith. All rights reserved.
+// See LICENSE for details.
+
+import {Component, ElementRef, inject, OnDestroy, OnInit, QueryList, ViewChildren} from '@angular/core';
+import {FormBuilder, FormGroup, ReactiveFormsModule, Validators} from "@angular/forms";
+import {Subject} from "rxjs";
+import {takeUntil} from "rxjs/operators";
+import {Brand} from "../../models/brand";
+import {BrandService} from "../../_services/brand.service";
+import {CategoryService} from "../../_services/category.service";
+import {Product} from "../../models/product";
+import {Category} from "../../models/category";
+import {Pagination} from "../../models/pagination";
+import {ProductService} from "../../_services/product.service";
+import {BrowserDetectorService} from "../../_services/browser-detector.service";
+import {NgClass, NgTemplateOutlet} from "@angular/common";
+import {NgxPaginationModule} from "ngx-pagination";
+import {RouterLink} from "@angular/router";
+
+@Component({
+  selector: 'app-overview',
+  templateUrl: './overview.component.html',
+  imports: [
+    ReactiveFormsModule,
+    NgTemplateOutlet,
+    NgxPaginationModule,
+    RouterLink,
+    NgClass
+],
+  styleUrls: ['./overview.component.css']
+})
+export class OverviewComponent implements OnInit, OnDestroy {
+  private readonly productService = inject(ProductService);
+  private readonly formBuilder = inject(FormBuilder);
+  private readonly brandService = inject(BrandService);
+  private readonly categoryService = inject(CategoryService);
+  public readonly browserDetect = inject(BrowserDetectorService);
+
+  @ViewChildren("checkboxes") checkboxes: QueryList<ElementRef>;
+
+  search: FormGroup;
+  resultState: string = '';
+  p: number = 1;
+  results: Pagination<Product>;
+  brands: Brand[];
+  categories: Category[];
+  private brandsFilter: Array<string> = [];
+  private categoriesFilter: Array<string> = [];
+  private sorting: string = '';
+  private readonly destroy$ = new Subject<void>();
+
+  ngOnInit(): void {
+    this.getProducts();
+
+    this.brandService.getBrands()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(response => {
+        this.brands = response;
+      });
+
+    this.categoryService.getCategoriesTree()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(response => {
+        this.categories = response;
+      });
+
+    this.search = this.formBuilder.group(
+      {
+        query: ['', [Validators.required,
+          Validators.minLength(3),
+          Validators.maxLength(40)]],
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  getProducts() {
+    this.productService.getProducts(this.p)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(res => {
+        this.results = res;
+      });
+  }
+
+  filterByBrand(event: Event) {
+    const input = event.target as HTMLInputElement;
+    this.resultState = 'filter_started';
+    if (input.checked) {
+      this.brandsFilter.push(input.value);
+    } else {
+      this.brandsFilter = this.brandsFilter.filter(item => item !== input.value);
+    }
+    this.productService.getProductsByCategoryAndBrand(this.categoriesFilter.toString(), this.brandsFilter.toString(), this.sorting)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(res => {
+        this.resultState = 'filter_completed';
+        this.p = 1;
+        this.results = res;
+      });
+  }
+
+  filterByCategory(event: Event) {
+    const input = event.target as HTMLInputElement;
+    this.resultState = 'filter_started';
+    if (input.checked) {
+      this.categoriesFilter.push(input.value);
+    } else {
+      this.categoriesFilter = this.categoriesFilter.filter(item => item !== input.value);
+    }
+    this.productService.getProductsByCategoryAndBrand(this.categoriesFilter.toString(), this.brandsFilter.toString(), this.sorting)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(res => {
+        this.resultState = 'filter_completed';
+        this.p = 1;
+        this.results = res;
+      });
+  }
+
+  handlePageChange(event: number): void {
+    this.p = event;
+    this.getProducts();
+  }
+
+  onSearchSubmit() {
+    if (this.search.invalid) {
+      return;
+    }
+
+    this.resultState = 'search_started';
+    this.productService.searchProducts(this.search.value.query)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(res => {
+        this.resultState = 'search_completed';
+        this.results = res;
+      });
+    this.search.reset();
+    this.uncheckAll();
+  }
+
+  changeSorting(event: Event) {
+    this.sorting = (event.target as HTMLSelectElement).value;
+
+    this.resultState = 'sorting_started';
+    this.productService.getProductsByCategoryAndBrand(this.categoriesFilter.toString(), this.brandsFilter.toString(), this.sorting)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(res => {
+        this.results = res;
+        this.resultState = 'sorting_completed';
+      });
+  }
+
+  uncheckAll() {
+    this.checkboxes.forEach((element) => {
+      element.nativeElement.checked = false;
+    });
+  }
+}
