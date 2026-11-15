@@ -43,7 +43,7 @@ services:
       - laravel-api:/var/www
     ports:
       - 8091:80
-      - 8000:81
+      - 8002:81
     depends_on:
       - laravel-api
 
