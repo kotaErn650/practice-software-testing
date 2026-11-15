@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toolshop DEMO - Add Product</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #0d47a1;
+        }
+        .logo span { color: #4caf50; }
+        h1 { font-size: 24px; margin-bottom: 20px; }
+        .container {
+            display: flex;
+            gap: 40px;
+            max-width: 900px;
+        }
+        .form-section { flex: 1; }
+        .image-section { width: 350px; }
+        .form-group {
+            display: flex;
+            margin-bottom: 15px;
+            align-items: flex-start;
+        }
+        .form-group label {
+            width: 120px;
+            font-size: 14px;
+            color: #555;
+            padding-top: 6px;
+        }
+        .input-wrapper { flex: 1; }
+        input[type="text"], input[type="number"], textarea, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        textarea { height: 80px; resize: vertical; }
+        
+        /* ESTILOS DE LA ALERTA DE ERROR */
+        .error-state {
+            border: 2px solid #dc3545 !important; /* Borde rojo */
+            background-color: #fff8f8; /* Fondo rojizo sutil */
+            outline: none;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 13px;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: bold;
+        }
+        .error-message::before {
+            content: '⚠'; /* Icono de advertencia */
+        }
+
+        .checkbox-group { display: flex; align-items: center; gap: 10px; padding-top: 5px;}
+        .checkbox-group label { width: auto; padding-top: 0; margin:0;}
+        .helper-text { font-size: 12px; color: #777; margin-top: 4px; }
+        .btn-save {
+            background-color: #0d6efd;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .btn-back { color: #0d6efd; text-decoration: none; margin-left: 15px; font-size: 14px; }
+        img { max-width: 100%; border-radius: 4px; }
+        .footer {
+            margin-top: 40px;
+            font-size: 11px;
+            color: #777;
+            text-align: center;
+            background-color: #f8f9fa;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo">⚙️ TOOLSHOP <span>DEMO</span></div>
+        <div style="font-size: 14px; color: #555;">Inicio &nbsp; Categorías ▾ &nbsp; Contacto &nbsp; John Doe ▾ &nbsp; 🌐 ES</div>
+    </div>
+
+    <h1>Add Product</h1>
+
+    <div class="container">
+        <div class="form-section">
+            <div class="form-group">
+                <label>Name</label>
+                <div class="input-wrapper"><input type="text" value="hammer"></div>
+            </div>
+            
+            <div class="form-group">
+                <label>Description</label>
+                <div class="input-wrapper"><textarea>Hammer for use hands</textarea></div>
+            </div>
+
+            <div class="form-group">
+                <label>Stock</label>
+                <div class="input-wrapper"><input type="number" value="10"></div>
+            </div>
+
+            <!-- CAMPO PRICE CON ALERTA -->
+            <div class="form-group">
+                <label>Price</label>
+                <div class="input-wrapper">
+                    <input type="number" value="-1" class="error-state">
+                    <div class="error-message">The price cannot be negative. Please enter a valid amount.</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Location offer</label>
+                <div class="input-wrapper checkbox-group">
+                    <input type="checkbox" checked>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Item for rent</label>
+                <div class="input-wrapper checkbox-group">
+                    <input type="checkbox">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>CO₂ Rating</label>
+                <div class="input-wrapper">
+                    <select>
+                        <option>A - Most environmentally friendly</option>
+                    </select>
+                    <div class="helper-text">Products with rating A or B automatically display the ECO badge</div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Brand</label>
+                <div class="input-wrapper">
+                    <select><option>ForgeFlex Tools</option></select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Category</label>
+                <div class="input-wrapper">
+                    <select><option>Hammer</option></select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Image</label>
+                <div class="input-wrapper">
+                    <select><option>Hammer</option></select>
+                </div>
+            </div>
+
+            <div style="margin-left: 120px;">
+                <button class="btn-save" disabled style="opacity: 0.6; cursor: not-allowed;">Save</button>
+                <a href="#" class="btn-back">Back</a>
+            </div>
+        </div>
+
+        <div class="image-section">
+            <img src="https://images.unsplash.com/photo-1586864387967-d02ef85d93e8?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Hammer">
+            <div class="helper-text" style="margin-top: 8px; text-align: center;">Photo by <a href="#">Jozsef Hocza</a> on <a href="#">Unsplash</a></div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Esta es una aplicación DEMO, utilizada para propósitos de formación en pruebas de software. | Privacy Policy | Banner photo by Barn Images on Unsplash<br>
+        vdev | Built 2026-11-11 | Angular 20.0.5
+    </div>
+
+</body>
+</html>

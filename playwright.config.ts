@@ -25,9 +25,15 @@ export default defineConfig({
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
-  use: {
+use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: 'http://localhost:4200',
+    testIdAttribute: 'data-test',
+
+    /* Inyectamos una regla para que Chromium sepa salir del contenedor */
+    launchOptions: {
+      args: ['--host-resolver-rules=MAP localhost host.docker.internal']
+    },
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
